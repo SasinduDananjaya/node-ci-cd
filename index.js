@@ -26,7 +26,7 @@ app.get('/', (req, res) => {
   res.send(`API is runningg on port ${process.env.PORT}...\n without any errors`);
 });
 
-//error handling middleware 
+//error handling middleware
 app.use(notFound);
 app.use(errorHandler);
 
