@@ -38,10 +38,15 @@ jobs:
 
       - name: Update task definition with MongoDB URI
         run: |
-          # Use jq to properly handle JSON escaping
-          MONGO_URI_JSON=$(echo -n '${{ secrets.MONGO_URI }}' | jq -Rsa .)
+          # Decode the URL-encoded MongoDB URI
+          DECODED_URI=$(echo -n '${{ secrets.MONGO_URI }}' | python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read()))")
+    
+          # Use jq to properly handle JSON escaping of the decoded URI
+          MONGO_URI_JSON=$(echo -n "$DECODED_URI" | jq -Rsa .)
+    
           # Remove the outer quotes that jq adds
           MONGO_URI_ESCAPED=${MONGO_URI_JSON:1:-1}
+    
           # Replace the placeholder with the properly escaped value
           sed -i 's|"value": "${MONGO_URI}"|"value": "'"$MONGO_URI_ESCAPED"'"|g' nodejs-app-task-definition.json
     
