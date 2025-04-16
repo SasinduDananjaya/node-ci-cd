@@ -39,15 +39,15 @@ jobs:
       - name: Update task definition with MongoDB URI
         run: |
           # Use jq to properly handle JSON escaping
-          MONGODB_URI_JSON=$(echo -n '${{ secrets.MONGODB_URI }}' | jq -Rsa .)
+          MONGO_URI_JSON=$(echo -n '${{ secrets.MONGO_URI }}' | jq -Rsa .)
           # Remove the outer quotes that jq adds
-          MONGODB_URI_ESCAPED=${MONGODB_URI_JSON:1:-1}
+          MONGO_URI_ESCAPED=${MONGO_URI_JSON:1:-1}
           # Replace the placeholder with the properly escaped value
-          sed -i 's|"value": "${MONGODB_URI}"|"value": "'"$MONGODB_URI_ESCAPED"'"|g' nodejs-app-task-definition.json
+          sed -i 's|"value": "${MONGO_URI}"|"value": "'"$MONGO_URI_ESCAPED"'"|g' nodejs-app-task-definition.json
     
           # Verify the replacement worked
           echo "Task definition after replacement:"
-          grep -A 3 "MONGODB_URI" nodejs-app-task-definition.json
+          grep -A 3 "MONGO_URI" nodejs-app-task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
