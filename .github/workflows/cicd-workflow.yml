@@ -38,7 +38,8 @@ jobs:
 
       - name: Update task definition with MongoDB URI
         run: |
-          sed -i "s|\${MONGO_URI}|${{ secrets.MONGO_URI }}|g" nodejs-app-task-definition.json
+          DECODED_URI=$(echo -n "${{ secrets.MONGODB_URI }}" | python -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read()))")
+          sed -i "s|\${MONGODB_URI}|$DECODED_URI|g" nodejs-app-task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
