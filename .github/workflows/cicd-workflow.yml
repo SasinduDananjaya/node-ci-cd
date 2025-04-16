@@ -38,21 +38,18 @@ jobs:
 
       - name: Update task definition with MongoDB URI
         run: |
-          # Decode the URL-encoded MongoDB URI
+          # Get the MongoDB URI from secrets and decode it if necessary
           DECODED_URI=$(echo -n '${{ secrets.MONGO_URI }}' | python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read()))")
-    
-          # Use jq to properly handle JSON escaping of the decoded URI
-          MONGO_URI_JSON=$(echo -n "$DECODED_URI" | jq -Rsa .)
-    
-          # Remove the outer quotes that jq adds
-          MONGO_URI_ESCAPED=${MONGO_URI_JSON:1:-1}
-    
-          # Replace the placeholder with the properly escaped value
-          sed -i 's|"value": "${MONGO_URI}"|"value": "'"$MONGO_URI_ESCAPED"'"|g' nodejs-app-task-definition.json
-    
+          
+          # Use jq to properly update the JSON file
+          jq --arg uri "$DECODED_URI" '.containerDefinitions[0].environment |= map(if .name == "MONGO_URI" then .value = $uri else . end)' nodejs-app-task-definition.json > updated-task-def.json
+          
+          # Replace the original file with the updated one
+          mv updated-task-def.json nodejs-app-task-definition.json
+          
           # Verify the replacement worked
           echo "Task definition after replacement:"
-          grep -A 3 "MONGO_URI" nodejs-app-task-definition.json
+          jq '.containerDefinitions[0].environment[] | select(.name == "MONGO_URI")' nodejs-app-task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
