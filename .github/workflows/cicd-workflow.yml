@@ -37,33 +37,33 @@ jobs:
           echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Update task definition with environment variables
-          run: |
-            # Get all secret values
-            DECODED_URI=$(echo -n '${{ secrets.MONGO_URI }}' | python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read()))")
-            PORT_VALUE="${{ secrets.PORT }}"
-            JWT_SECRET_VALUE="${{ secrets.JWT_SECRET }}"
-            JWT_EXPIRE_VALUE="${{ secrets.JWT_EXPIRE }}"
-    
-            # Use jq to update all environment variables in one pass
-            jq --arg uri "$DECODED_URI" \
-               --arg port "$PORT_VALUE" \
-               --arg jwt_secret "$JWT_SECRET_VALUE" \
-               --arg jwt_expire "$JWT_EXPIRE_VALUE" \
-               '.containerDefinitions[0].environment |= map(
-                  if .name == "MONGO_URI" then .value = $uri
-                  elif .name == "PORT" then .value = $port
-                  elif .name == "JWT_SECRET" then .value = $jwt_secret
-                  elif .name == "JWT_EXPIRE" then .value = $jwt_expire
-                  else .
-                  end
-                )' nodejs-app-task-definition.json > updated-task-def.json
-    
-            # Replace the original file
-            mv updated-task-def.json nodejs-app-task-definition.json
-            
-            # Verify the replacements (excluding secrets from log output)
-            echo "Task definition environment variables after replacement:"
-            jq '.containerDefinitions[0].environment | map({name: .name})' nodejs-app-task-definition.json
+        run: |
+          # Get all secret values
+          DECODED_URI=$(echo -n '${{ secrets.MONGO_URI }}' | python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read()))")
+          PORT_VALUE="${{ secrets.PORT }}"
+          JWT_SECRET_VALUE="${{ secrets.JWT_SECRET }}"
+          JWT_EXPIRE_VALUE="${{ secrets.JWT_EXPIRE }}"
+          
+          # Use jq to update all environment variables in one pass
+          jq --arg uri "$DECODED_URI" \
+            --arg port "$PORT_VALUE" \
+            --arg jwt_secret "$JWT_SECRET_VALUE" \
+            --arg jwt_expire "$JWT_EXPIRE_VALUE" \
+            '.containerDefinitions[0].environment |= map(
+                if .name == "MONGO_URI" then .value = $uri
+                elif .name == "PORT" then .value = $port
+                elif .name == "JWT_SECRET" then .value = $jwt_secret
+                elif .name == "JWT_EXPIRE" then .value = $jwt_expire
+                else .
+                end
+              )' nodejs-app-task-definition.json > updated-task-def.json
+          
+          # Replace the original file
+          mv updated-task-def.json nodejs-app-task-definition.json
+          
+          # Verify the replacements (excluding secrets from log output)
+          echo "Task definition environment variables after replacement:"
+          jq '.containerDefinitions[0].environment | map({name: .name})' nodejs-app-task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
