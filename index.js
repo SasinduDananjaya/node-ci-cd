@@ -23,7 +23,7 @@ app.use('/api/products', require('./routes/productRoutes'));
 
 //root route
 app.get('/', (req, res) => {
-  res.send(`API is runningg on port ${process.env.PORT}...\n without any errors`);
+  res.send(`API is running on port ${process.env.PORT}...\n without any errors`);
 });
 
 //error handling middleware
@@ -33,5 +33,5 @@ app.use(errorHandler);
 //start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server runninnng in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
