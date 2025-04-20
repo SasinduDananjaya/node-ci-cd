@@ -1,34 +1,45 @@
-name: CICD
+name: CD Pipeline
 
 on:
-  push:
-    branches: [ main ]
+  workflow_run:
+    workflows: ["CI Pipeline", "SonarCloud Analysis"]
+    types:
+      - completed
+    branches: [ dev ]
 
 jobs:
-  build-and-deploy:
-    runs-on: [ ubuntu-latest ]
+  check-required-workflows:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - id: check
+        name: Check if required workflows succeeded
+        run: |
+          CI_STATUS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci.yml/runs?branch=dev&status=success&per_page=1" | \
+            jq -r '.workflow_runs[0].conclusion')
+          
+          SONAR_STATUS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/sonar.yml/runs?branch=dev&status=success&per_page=1" | \
+            jq -r '.workflow_runs[0].conclusion')
+          
+          if [[ "$CI_STATUS" == "success" && "$SONAR_STATUS" == "success" ]]; then
+            echo "Both workflows succeeded"
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "Required workflows did not succeed. CI: $CI_STATUS, SonarCloud: $SONAR_STATUS"
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    needs: check-required-workflows
+    if: ${{ needs.check-required-workflows.outputs.should_deploy == 'true' }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v2.2.0
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=ctse-node-ci-cd-2025
-            -Dsonar.projectKey=SasinduDananjaya_node-ci-cd
-            -Dsonar.host.url=https://sonarcloud.io
-
+        
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
@@ -49,9 +60,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           REPOSITORY: nodejs-app
         run: |
-          # Build a docker container and
-          # push it to ECR so that it can
-          # be deployed to ECS.
+          # Build a docker container and push it to ECR
           docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
@@ -99,4 +108,4 @@ jobs:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: nodejs-app-service
           cluster: NodeDevCluster
-          wait-for-service-stability: true    
+          wait-for-service-stability: true
