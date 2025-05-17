@@ -17,3 +17,5 @@ router.post('/login', loginUser);
 router.get('/profile', protect, getUserProfile);
 
 module.exports = router;
+
+//This is a test commit
